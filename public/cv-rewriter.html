@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CV Rewriter - CareerMate AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm py-4">
+        <div class="container mx-auto px-6 flex justify-between items-center">
+            <a href="/" class="flex items-center space-x-2">
+                <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center">
+                    <i class="fas fa-robot text-white text-xl"></i>
+                </div>
+                <span class="text-xl font-bold text-gray-800">CareerMate AI</span>
+            </a>
+            <div class="flex items-center space-x-4">
+                <a href="/cv-services" class="text-gray-600 hover:text-indigo-600">Back to Services</a>
+                <a href="/" class="text-gray-600 hover:text-indigo-600">Home</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-6 py-8">
+        <div class="max-w-4xl mx-auto">
+            <!-- Header -->
+            <div class="text-center mb-12">
+                <h1 class="text-3xl font-bold text-gray-800 mb-4">CV Rewriter</h1>
+                <p class="text-gray-600">Enhance your CV with improved grammar, wording & format</p>
+            </div>
+
+            <!-- Upload and Options Section -->
+            <div class="bg-white rounded-xl shadow-md p-8 mb-8">
+                <div class="space-y-6">
+                    <!-- File Upload -->
+                    <div class="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg">
+                        <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
+                        <p class="text-gray-600 mb-2">Drag and drop your CV here or</p>
+                        <input type="file" id="cvFile" accept=".pdf" class="hidden">
+                        <label for="cvFile" class="cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition">
+                            Browse Files
+                        </label>
+                        <p class="text-sm text-gray-500 mt-2">Supported format: PDF</p>
+                    </div>
+
+                    <!-- Rewriting Options -->
+                    <div class="space-y-4">
+                        <h3 class="text-lg font-semibold text-gray-800">Rewriting Options</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" id="improveGrammar" checked class="form-checkbox text-indigo-600">
+                                <span class="text-gray-700">Improve Grammar</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" id="enhanceWording" checked class="form-checkbox text-indigo-600">
+                                <span class="text-gray-700">Enhance Wording</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" id="optimizeFormat" checked class="form-checkbox text-indigo-600">
+                                <span class="text-gray-700">Optimize Format</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" id="addKeywords" checked class="form-checkbox text-indigo-600">
+                                <span class="text-gray-700">Add Industry Keywords</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button id="rewriteButton" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-lg transition">
+                        Rewrite CV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="resultsSection" class="hidden">
+                <!-- Before/After Comparison -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                    <!-- Original CV -->
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Original CV</h3>
+                        <div id="originalContent" class="text-gray-600 whitespace-pre-wrap"></div>
+                    </div>
+                    <!-- Improved CV -->
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Improved CV</h3>
+                        <div id="improvedContent" class="text-gray-600 whitespace-pre-wrap"></div>
+                    </div>
+                </div>
+
+                <!-- Download Button -->
+                <div class="text-center">
+                    <button id="downloadButton" class="bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-8 rounded-lg transition">
+                        <i class="fas fa-download mr-2"></i>Download Improved CV
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const cvFile = document.getElementById('cvFile');
+        const rewriteButton = document.getElementById('rewriteButton');
+        const resultsSection = document.getElementById('resultsSection');
+        const originalContent = document.getElementById('originalContent');
+        const improvedContent = document.getElementById('improvedContent');
+        const downloadButton = document.getElementById('downloadButton');
+
+        rewriteButton.addEventListener('click', async () => {
+            const file = cvFile.files[0];
+            if (!file) {
+                alert('Please upload your CV first');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('cv', file);
+            
+            // Add selected options to the request
+            formData.append('improveGrammar', document.getElementById('improveGrammar').checked);
+            formData.append('enhanceWording', document.getElementById('enhanceWording').checked);
+            formData.append('optimizeFormat', document.getElementById('optimizeFormat').checked);
+            formData.append('addKeywords', document.getElementById('addKeywords').checked);
+
+            try {
+                const response = await fetch('/api/cv-rewrite', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Display results
+                resultsSection.classList.remove('hidden');
+                
+                // Show original and improved content
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    originalContent.textContent = e.target.result;
+                };
+                reader.readAsText(file);
+
+                improvedContent.textContent = data.improvedCV;
+
+                // Enable download button
+                downloadButton.addEventListener('click', () => {
+                    const blob = new Blob([data.improvedCV], { type: 'text/plain' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'improved_cv.txt';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                });
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error rewriting CV: ' + error.message);
+            }
+        });
+
+        // File upload preview
+        cvFile.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const fileName = file.name;
+                // You could add preview functionality here if needed
+            }
+        });
+    </script>
+</body>
+</html>

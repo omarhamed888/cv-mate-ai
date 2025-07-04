@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Interview Chat - CareerMate AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm py-4">
+        <div class="container mx-auto px-6 flex justify-between items-center">
+            <a href="/" class="flex items-center space-x-2">
+                <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center">
+                    <i class="fas fa-robot text-white text-xl"></i>
+                </div>
+                <span class="text-xl font-bold text-gray-800">CareerMate AI</span>
+            </a>
+            <div class="flex items-center space-x-4">
+                <a href="/cv-services" class="text-gray-600 hover:text-indigo-600">Back to Services</a>
+                <a href="/" class="text-gray-600 hover:text-indigo-600">Home</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="flex flex-col h-screen bg-gray-50">
+        <!-- Upload Section -->
+        <div class="bg-white border-b p-4">
+            <div class="container mx-auto max-w-4xl">
+                <div class="flex items-center space-x-4">
+                    <div class="flex-1">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Upload your CV first (PDF)</label>
+                        <input type="file" id="cvFile" accept=".pdf" class="hidden">
+                        <label for="cvFile" class="flex items-center px-4 py-2 bg-white rounded-lg border border-indigo-500 cursor-pointer hover:bg-indigo-50">
+                            <i class="fas fa-upload text-indigo-500 mr-2"></i>
+                            <span class="text-indigo-500">Choose file</span>
+                        </label>
+                    </div>
+                    <button id="startChat" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition">
+                        Start Interview
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="flex-1 overflow-y-auto p-4">
+            <div class="container mx-auto max-w-4xl">
+                <div id="chatMessages" class="space-y-4">
+                    <!-- Messages will be inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="bg-white border-t p-4">
+            <div class="container mx-auto max-w-4xl">
+                <div class="flex space-x-4">
+                    <input type="text" id="userInput" class="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" 
+                           placeholder="Type your response..." disabled>
+                    <button id="sendMessage" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition" disabled>
+                        Send
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatMessages = document.getElementById('chatMessages');
+        const userInput = document.getElementById('userInput');
+        const sendMessage = document.getElementById('sendMessage');
+        const cvFile = document.getElementById('cvFile');
+        const startChat = document.getElementById('startChat');
+
+        function addMessage(message, isUser = false) {
+            const div = document.createElement('div');
+            div.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+            div.innerHTML = `
+                <div class="${isUser ? 'bg-indigo-600 text-white' : 'bg-white'} rounded-lg px-4 py-2 max-w-md shadow">
+                    <p>${message}</p>
+                </div>
+            `;
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        startChat.addEventListener('click', async () => {
+            const file = cvFile.files[0];
+            if (!file) {
+                alert('Please upload your CV first');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('cv', file);
+
+            try {
+                const response = await fetch('/api/interview-chat', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                const data = await response.json();
+                addMessage("Hello! I've reviewed your CV. Let's start the interview. " + data.reply);
+                
+                // Enable chat input
+                userInput.disabled = false;
+                sendMessage.disabled = false;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage('Sorry, there was an error starting the interview.');
+            }
+        });
+
+        sendMessage.addEventListener('click', async () => {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            addMessage(message, true);
+            userInput.value = '';
+
+            try {
+                const response = await fetch('/api/interview-chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message })
+                });
+                
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                const data = await response.json();
+                addMessage(data.reply);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage('Sorry, there was an error processing your response.');
+            }
+        });
+
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage.click();
+            }
+        });
+
+        // File upload feedback
+        cvFile.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const label = cvFile.nextElementSibling;
+                label.innerHTML = `<i class="fas fa-check text-green-500 mr-2"></i><span class="text-green-500">File selected: ${file.name}</span>`;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATS Scanner - CareerMate AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm py-4">
+        <div class="container mx-auto px-6 flex justify-between items-center">
+            <a href="/" class="flex items-center space-x-2">
+                <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center">
+                    <i class="fas fa-robot text-white text-xl"></i>
+                </div>
+                <span class="text-xl font-bold text-gray-800">CareerMate AI</span>
+            </a>
+            <div class="flex items-center space-x-4">
+                <a href="/cv-services" class="text-gray-600 hover:text-indigo-600">Back to Services</a>
+                <a href="/" class="text-gray-600 hover:text-indigo-600">Home</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-6 py-8">
+        <div class="max-w-4xl mx-auto">
+            <!-- Header -->
+            <div class="text-center mb-12">
+                <h1 class="text-3xl font-bold text-gray-800 mb-4">ATS Scanner</h1>
+                <p class="text-gray-600">Check how your CV performs against Applicant Tracking Systems</p>
+            </div>
+
+            <!-- Upload Section -->
+            <div class="bg-white rounded-xl shadow-md p-8 mb-8">
+                <div class="space-y-6">
+                    <div class="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg">
+                        <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
+                        <p class="text-gray-600 mb-2">Drag and drop your CV here or</p>
+                        <input type="file" id="cvFile" accept=".pdf" class="hidden">
+                        <label for="cvFile" class="cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition">
+                            Browse Files
+                        </label>
+                        <p class="text-sm text-gray-500 mt-2">Supported format: PDF</p>
+                    </div>
+                    <div id="uploadStatus" class="hidden">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm text-gray-600">Uploading...</span>
+                            <span class="text-sm text-indigo-600">0%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-indigo-600 h-2 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <button id="scanButton" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-lg transition">
+                        Start ATS Scan
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="resultsSection" class="hidden bg-white rounded-xl shadow-md p-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Scan Results</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <!-- ATS Score -->
+                    <div class="bg-gray-50 rounded-lg p-6 text-center">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-2">ATS Score</h3>
+                        <div class="text-3xl font-bold text-indigo-600" id="atsScore">-</div>
+                    </div>
+                    <!-- Keyword Match -->
+                    <div class="bg-gray-50 rounded-lg p-6 text-center">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-2">Keyword Match</h3>
+                        <div class="text-3xl font-bold text-indigo-600" id="keywordMatch">-</div>
+                    </div>
+                    <!-- Format Score -->
+                    <div class="bg-gray-50 rounded-lg p-6 text-center">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-2">Format Score</h3>
+                        <div class="text-3xl font-bold text-indigo-600" id="formatScore">-</div>
+                    </div>
+                </div>
+                <!-- Detailed Analysis -->
+                <div id="analysisDetails" class="space-y-6">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const cvFile = document.getElementById('cvFile');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const scanButton = document.getElementById('scanButton');
+        const resultsSection = document.getElementById('resultsSection');
+        const analysisDetails = document.getElementById('analysisDetails');
+        const atsScore = document.getElementById('atsScore');
+        const keywordMatch = document.getElementById('keywordMatch');
+        const formatScore = document.getElementById('formatScore');
+
+        scanButton.addEventListener('click', async () => {
+            const file = cvFile.files[0];
+            if (!file) {
+                alert('Please upload your CV first');
+                return;
+            }
+
+            // Show upload status
+            uploadStatus.classList.remove('hidden');
+            
+            const formData = new FormData();
+            formData.append('cv', file);
+
+            try {
+                const response = await fetch('/api/ats-scan', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Display results
+                resultsSection.classList.remove('hidden');
+                
+                // Parse and display the analysis
+                const analysis = JSON.parse(data.analysis);
+                atsScore.textContent = analysis.atsScore + '%';
+                keywordMatch.textContent = analysis.keywordMatch + '%';
+                formatScore.textContent = analysis.formatScore + '%';
+
+                // Display detailed analysis
+                analysisDetails.innerHTML = `
+                    <div class="border-t pt-6">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Recommendations</h3>
+                        <ul class="space-y-3">
+                            ${analysis.recommendations.map(rec => `
+                                <li class="flex items-start">
+                                    <i class="fas fa-info-circle text-indigo-600 mt-1 mr-2"></i>
+                                    <span class="text-gray-600">${rec}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error scanning CV: ' + error.message);
+            } finally {
+                uploadStatus.classList.add('hidden');
+            }
+        });
+
+        // File upload preview
+        cvFile.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const fileName = file.name;
+                // You could add preview functionality here if needed
+            }
+        });
+    </script>
+</body>
+</html>
