@@ -1,0 +1,317 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareerSync - Home</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        trustBlue: '#1E3A8A',
+                        successGreen: '#10B981',
+                        alertYellow: '#F59E0B',
+                         darkGray: '#374151' // Added for tooltip background
+                    }
+                }
+            }
+        }
+    </script>
+     <style>
+        /* Custom styles for better loading indicator */
+        .loading-spinner {
+            border-top-color: currentColor;
+            border-left-color: currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+         /* Basic tooltip styling (can be enhanced with Tailwind variants if needed) */
+        [data-tooltip] {
+            position: relative;
+            cursor: help; /* Optional: change cursor to indicate help */
+        }
+
+        /* Custom style for drag-and-drop area */
+        .drag-drop-area {
+            border-width: 2px;
+            border-style: dashed;
+            border-color: var(--trustBlue); /* Using CSS variable */
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            transition: background-color 300ms ease-in-out;
+        }
+        .drag-drop-area:hover {
+            background-color: #F9FAFB; /* Tailwind gray-50 */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800">
+    <header class="bg-white shadow-sm py-4 px-6">
+        <div class="container mx-auto flex flex-wrap items-center justify-between">
+            <a href="/" class="text-2xl font-bold text-trustBlue hover:text-blue-900 transition duration-300">CareerSync</a>
+             <nav class="mt-4 md:mt-0">
+                <ul class="flex flex-wrap space-x-4 sm:space-x-6">
+                    <li><a href="/cv-analysis/review" class="text-gray-600 hover:text-trustBlue transition duration-300 py-2">CV Analysis</a></li>
+                    <li><a href="/interview-prep/mock-interview" class="text-gray-600 hover:text-trustBlue transition duration-300 py-2">Interview Prep</a></li>
+                    <li><a href="/upskilling/mini-courses" class="text-gray-600 hover:text-trustBlue transition duration-300 py-2">Upskilling</a></li>
+                    <li><a href="/bonus-tools/job-finder" class="text-gray-600 hover:text-trustBlue transition duration-300 py-2">Bonus Tools</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container mx-auto p-6 mt-4">
+        <h1 class="text-3xl font-bold text-trustBlue mb-6">Welcome to CareerSync</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="mb-4">
+                    {% for category, message in messages %}
+                        <div class="bg-alertYellow text-white p-4 rounded mb-2">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% if not cv_uploaded %}
+            <div class="bg-white p-8 rounded-lg shadow-xl max-w-lg mx-auto">
+                <p class="text-gray-600 text-center mb-6 text-lg">Upload your CV to unlock powerful career tools!</p>
+
+                <div class="drag-drop-area cursor-pointer"
+                     ondragover="event.preventDefault()"
+                     ondrop="handleDrop(event)"
+                     onclick="document.getElementById('cvFile').click()"
+                     data-tooltip="Drag and drop your CV here or click to select">
+                    <svg class="mx-auto h-12 w-12 text-trustBlue opacity-75" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <p class="text-gray-500 mt-2">Drag & Drop your CV here or Click to Browse</p>
+                     <input type="file" id="cvFile" accept=".pdf,.docx,.txt" class="hidden" onchange="handleFileSelect(event)">
+                </div>
+                <div id="uploadStatus" class="mt-4 text-center text-sm hidden"></div>
+            </div>
+        {% else %}
+            <p class="text-gray-600 mb-8 text-lg text-center">Explore our tools to enhance your career journey.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+                <a href="/cv-analysis/review" class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition duration-300 flex flex-col justify-between" data-tooltip="Analyze and improve your CV">
+                    <div>
+                         <h2 class="text-xl font-semibold text-trustBlue mb-2">CV Analysis Services</h2>
+                         <p class="text-gray-600">Review, ATS scan, job matching, and CV rewriting tools.</p>
+                    </div>
+                    <div class="mt-4 text-right text-trustBlue font-medium hover:underline">Learn More &rarr;</div>
+                </a>
+                <a href="/interview-prep/mock-interview" class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition duration-300 flex flex-col justify-between" data-tooltip="Prepare for interviews with AI tools">
+                    <div>
+                        <h2 class="text-xl font-semibold text-trustBlue mb-2">Interview Preparation Tools</h2>
+                        <p class="text-gray-600">Mock interviews, job-specific questions, and answer templates.</p>
+                    </div>
+                    <div class="mt-4 text-right text-trustBlue font-medium hover:underline">Learn More &rarr;</div>
+                </a>
+                <a href="/upskilling/mini-courses" class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition duration-300 flex flex-col justify-between" data-tooltip="Upskill with tailored courses and projects">
+                    <div>
+                        <h2 class="text-xl font-semibold text-trustBlue mb-2">Career Upskilling Tools</h2>
+                        <p class="text-gray-600">Courses, career paths, and project suggestions.</p>
+                    </div>
+                     <div class="mt-4 text-right text-trustBlue font-medium hover:underline">Learn More &rarr;</div>
+                </a>
+                <a href="/bonus-tools/job-finder" class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition duration-300 flex flex-col justify-between" data-tooltip="Additional tools for job success">
+                    <div>
+                        <h2 class="text-xl font-semibold text-trustBlue mb-2">Bonus Tools</h2>
+                        <p class="text-gray-600">Job finder, CV formatter, and email writer.</p>
+                    </div>
+                     <div class="mt-4 text-right text-trustBlue font-medium hover:underline">Learn More &rarr;</div>
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+     <script>
+        function handleDrop(event) {
+            event.preventDefault();
+            const file = event.dataTransfer.files[0];
+            // Basic validation
+            if (!file || file.size === 0) {
+                 showStatus('Please drop a valid file.', 'text-alertYellow');
+                 return;
+            }
+             if (!allowed_file(file.name)) {
+                showStatus('Invalid file type. Allowed: .pdf, .docx, .txt', 'text-alertYellow');
+                 return;
+             }
+            uploadFile(file);
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+             // Basic validation
+            if (!file || file.size === 0) {
+                 showStatus('No file selected or empty file.', 'text-alertYellow');
+                 return;
+            }
+             if (!allowed_file(file.name)) {
+                 showStatus('Invalid file type. Allowed: .pdf, .docx, .txt', 'text-alertYellow');
+                 return;
+             }
+            uploadFile(file);
+        }
+
+        function allowed_file(filename) {
+            const allowedExtensions = ['pdf', 'docx', 'txt'];
+            const extension = filename.split('.').pop().toLowerCase();
+            return allowedExtensions.includes(extension);
+        }
+
+        function showStatus(message, className) {
+            const status = document.getElementById('uploadStatus');
+            status.classList.remove('hidden', 'text-successGreen', 'text-alertYellow');
+            status.classList.add(className);
+            status.innerHTML = message;
+        }
+
+
+        function uploadFile(file) {
+            const status = document.getElementById('uploadStatus');
+            showStatus(`
+                <div class="flex items-center justify-center">
+                    <svg class="loading-spinner h-5 w-5 mr-3 text-trustBlue" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                    </svg>
+                    Uploading "${file.name}"...
+                </div>
+            `, 'text-gray-700');
+
+
+            const formData = new FormData();
+            formData.append('cv_file', file);
+
+            fetch('/upload-cv', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showStatus(`<div class="p-3 bg-yellow-50 rounded-md">${data.error}</div>`, 'text-alertYellow');
+                } else {
+                    showStatus('<div class="p-3 bg-green-50 rounded-md">CV uploaded successfully! Redirecting...</div>', 'text-successGreen');
+                    // Use a slight delay before redirecting
+                    setTimeout(() => {
+                         if (data.redirect) {
+                             window.location.href = data.redirect;
+                         } else {
+                             window.location.reload(); // Fallback reload
+                         }
+                    }, 1500);
+                }
+            })
+            .catch(error => {
+                console.error('Upload error:', error);
+                showStatus(`<div class="p-3 bg-yellow-50 rounded-md">Error uploading CV: ${error.message || error}</div>`, 'text-alertYellow');
+            });
+        }
+
+        // Tooltip Script (Duplicated as per constraint)
+        document.querySelectorAll('[data-tooltip]').forEach(el => {
+            let tooltip = null;
+
+            el.addEventListener('mouseenter', () => {
+                tooltip = document.createElement('div');
+                tooltip.className = 'tooltip-content absolute bg-gray-800 text-white text-sm rounded py-1 px-2 z-50 opacity-0 transition-opacity duration-200';
+                tooltip.innerText = el.getAttribute('data-tooltip');
+                document.body.appendChild(tooltip);
+
+                const rect = el.getBoundingClientRect();
+                tooltip.style.left = `${rect.left + window.scrollX + (rect.width / 2) - (tooltip.offsetWidth / 2)}px`; // Center tooltip below element
+                tooltip.style.top = `${rect.bottom + window.scrollY + 8}px`; // 8px margin below element
+                tooltip.classList.add('opacity-100'); // Fade in
+            });
+
+            el.addEventListener('mouseleave', () => {
+                if (tooltip) {
+                    tooltip.classList.remove('opacity-100'); // Fade out
+                    // Remove after transition
+                    tooltip.addEventListener('transitionend', () => {
+                        if (tooltip && tooltip.parentElement) {
+                           tooltip.parentElement.removeChild(tooltip);
+                        }
+                        tooltip = null;
+                    }, { once: true });
+                     // If transition doesn't fire (e.g., instant mouseout), ensure removal
+                    setTimeout(() => {
+                       if (tooltip && tooltip.parentElement) {
+                           tooltip.parentElement.removeChild(tooltip);
+                       }
+                       tooltip = null;
+                    }, 300); // Should be > transition duration
+                }
+            });
+
+             // Clean up tooltip on scroll
+             window.addEventListener('scroll', () => {
+                if (tooltip && tooltip.parentElement) {
+                    tooltip.parentElement.removeChild(tooltip);
+                    tooltip = null;
+                }
+             });
+             // Clean up tooltip if element is removed or becomes hidden (basic check)
+             new MutationObserver((mutationsList) => {
+                 if (tooltip && tooltip.parentElement && !document.body.contains(el)) {
+                      tooltip.parentElement.removeChild(tooltip);
+                      tooltip = null;
+                 }
+             }).observe(document.body, { childList: true, subtree: true });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,257 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareerSync - Job-Specific Questions</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        trustBlue: '#1E3A8A',
+                        successGreen: '#10B981',
+                        alertYellow: '#F59E0B',
+                         darkGray: '#374151' // Added for tooltip background
+                    }
+                }
+            }
+        }
+    </script>
+     <style>
+        /* Custom styles for better loading indicator */
+        .loading-spinner {
+            border-top-color: currentColor;
+            border-left-color: currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+         /* Basic tooltip styling (can be enhanced with Tailwind variants if needed) */
+        [data-tooltip] {
+            position: relative;
+            cursor: help; /* Optional: change cursor to indicate help */
+        }
+
+    </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800">
+    <header class="bg-white shadow-sm py-4 px-6">
+        <div class="container mx-auto flex flex-wrap items-center justify-between">
+            <a href="/" class="text-2xl font-bold text-trustBlue hover:text-blue-900 transition duration-300">CareerSync</a>
+             <nav class="mt-4 md:mt-0">
+                <ul class="flex flex-wrap space-x-4 sm:space-x-6">
+                    <li><a href="/cv-analysis/review" class="text-gray-600 hover:text-trustBlue transition duration-300 py-2">CV Analysis</a></li>
+                    <li><a href="/interview-prep/mock-interview" class="text-trustBlue font-semibold border-b-2 border-trustBlue py-2">Interview Prep</a></li>
+                    <li><a href="/upskilling/mini-courses" class="text-gray-600 hover:text-trustBlue transition duration-300 py-2">Upskilling</a></li>
+                    <li><a href="/bonus-tools/job-finder" class="text-gray-600 hover:text-trustBlue transition duration-300 py-2">Bonus Tools</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container mx-auto p-6 mt-4">
+        <h1 class="text-3xl font-bold text-trustBlue mb-6">Interview Preparation Tools</h1>
+
+        <!-- Secondary Navigation Tabs -->
+        <div class="flex flex-wrap border-b border-gray-300 mb-6">
+            <a href="/interview-prep/mock-interview" class="pb-3 px-4 text-gray-600 hover:text-trustBlue transition duration-300">Mock Interview</a>
+            <a href="/interview-prep/job-questions" class="pb-3 px-4 text-trustBlue border-b-2 border-trustBlue font-semibold">Job Questions</a>
+            <a href="/interview-prep/answer-templates" class="pb-3 px-4 text-gray-600 hover:text-trustBlue transition duration-300">Answer Templates</a>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-xl">
+            <h2 class="text-2xl font-semibold text-trustBlue mb-4 flex items-center" data-tooltip="Generate job-specific interview questions">
+                Job-Specific Questions
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5L7 9.536A1 1 0 008 11h4a1 1 0 00.867-1.464L10.867 7.5A1 1 0 0010 7z" clip-rule="evenodd" />
+                </svg>
+            </h2>
+            <p class="text-gray-600 mb-6">Get tailored interview questions based on your CV and job description.</p>
+
+            <div class="mb-6">
+                 <label for="jobDescription" class="block text-gray-700 text-sm font-medium mb-2">Job Description (Optional):</label>
+                 <textarea id="jobDescription" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-trustBlue focus:border-transparent" rows="5" placeholder="Paste job description (optional)"></textarea>
+            </div>
+
+            <button onclick="generateQuestions()" class="bg-trustBlue text-white px-6 py-3 rounded-lg hover:bg-blue-900 transition duration-300 text-lg font-medium shadow-md">
+                Generate Questions
+            </button>
+
+            <div id="result" class="mt-8 hidden">
+                 <!-- Results will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+     <script>
+        function generateQuestions() {
+            const result = document.getElementById('result');
+            const jobDescription = document.getElementById('jobDescription').value;
+            result.classList.remove('hidden');
+             result.innerHTML = `
+                <div class="flex items-center text-trustBlue">
+                    <svg class="loading-spinner h-5 w-5 mr-3" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                    </svg>
+                    Generating Questions...
+                </div>
+            `;
+
+
+            fetch('/mock-interview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ job_description: jobDescription }) // Correctly sends job_description
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    result.innerHTML = `<div class="text-alertYellow p-4 bg-yellow-50 rounded-md">${data.error}</div>`;
+                } else {
+                     // Check if any question list is not empty
+                    const hasQuestions = data.general_questions.length > 0 ||
+                                         data.technical_questions.length > 0 ||
+                                         data.behavioral_questions.length > 0;
+
+                    if (!hasQuestions) {
+                        result.innerHTML = `<div class="text-alertYellow p-4 bg-yellow-50 rounded-md">Could not generate specific questions based on the provided information. Please ensure your CV is uploaded.</div>`;
+                    } else {
+                         result.innerHTML = `
+                            <p class="text-gray-700 mb-4">Here are some potential interview questions:</p>
+                            ${data.general_questions.length > 0 ? `
+                                <div class="mb-4">
+                                    <h3 class="font-semibold text-gray-700 mb-1">General Questions:</h3>
+                                    <ul class="list-disc list-inside text-gray-600 space-y-1">
+                                        ${data.general_questions.map(q => `<li>${q}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                            ${data.technical_questions.length > 0 ? `
+                                <div class="mb-4">
+                                    <h3 class="font-semibold text-gray-700 mb-1">Technical Questions:</h3>
+                                    <ul class="list-disc list-inside text-gray-600 space-y-1">
+                                        ${data.technical_questions.map(q => `<li>${q}</li>`).join('')}
+                                    </ul>
+                                </div>
+                             ` : ''}
+                             ${data.behavioral_questions.length > 0 ? `
+                                <div class="mb-4">
+                                    <h3 class="font-semibold text-gray-700 mb-1">Behavioral Questions:</h3>
+                                    <ul class="list-disc list-inside text-gray-600 space-y-1">
+                                        ${data.behavioral_questions.map(q => `<li>${q}</li>`).join('')}
+                                    </ul>
+                                </div>
+                              ` : ''}
+
+                             <p class="text-sm text-gray-500 mt-6">Note: This is a question list. To practice a timed interview flow, use the 'Mock Interview Bot' feature (if implemented separately in the backend).</p>
+                         `;
+                     }
+                }
+            })
+            .catch(error => {
+                result.innerHTML = `<div class="text-alertYellow p-4 bg-yellow-50 rounded-md">Error: ${error}</div>`;
+            });
+        }
+
+        // Tooltip Script (Duplicated as per constraint)
+        document.querySelectorAll('[data-tooltip]').forEach(el => {
+            let tooltip = null;
+
+            el.addEventListener('mouseenter', () => {
+                tooltip = document.createElement('div');
+                tooltip.className = 'tooltip-content absolute bg-gray-800 text-white text-sm rounded py-1 px-2 z-50 opacity-0 transition-opacity duration-200';
+                tooltip.innerText = el.getAttribute('data-tooltip');
+                document.body.appendChild(tooltip);
+
+                const rect = el.getBoundingClientRect();
+                tooltip.style.left = `${rect.left + window.scrollX + (rect.width / 2) - (tooltip.offsetWidth / 2)}px`; // Center tooltip below element
+                tooltip.style.top = `${rect.bottom + window.scrollY + 8}px`; // 8px margin below element
+                tooltip.classList.add('opacity-100'); // Fade in
+            });
+
+            el.addEventListener('mouseleave', () => {
+                if (tooltip) {
+                    tooltip.classList.remove('opacity-100'); // Fade out
+                    // Remove after transition
+                    tooltip.addEventListener('transitionend', () => {
+                        if (tooltip && tooltip.parentElement) {
+                           tooltip.parentElement.removeChild(tooltip);
+                        }
+                        tooltip = null;
+                    }, { once: true });
+                     // If transition doesn't fire (e.g., instant mouseout), ensure removal
+                    setTimeout(() => {
+                       if (tooltip && tooltip.parentElement) {
+                           tooltip.parentElement.removeChild(tooltip);
+                       }
+                       tooltip = null;
+                    }, 300); // Should be > transition duration
+                }
+            });
+
+             // Clean up tooltip on scroll
+             window.addEventListener('scroll', () => {
+                if (tooltip && tooltip.parentElement) {
+                    tooltip.parentElement.removeChild(tooltip);
+                    tooltip = null;
+                }
+             });
+             // Clean up tooltip if element is removed or becomes hidden (basic check)
+             new MutationObserver((mutationsList) => {
+                 if (tooltip && tooltip.parentElement && !document.body.contains(el)) {
+                      tooltip.parentElement.removeChild(tooltip);
+                      tooltip = null;
+                 }
+             }).observe(document.body, { childList: true, subtree: true });
+        });
+    </script>
+</body>
+</html>
