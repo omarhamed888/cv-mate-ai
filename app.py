@@ -24,6 +24,7 @@ app.secret_key = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-change-this')
 app.config['SESSION_TYPE'] = 'filesystem'
 
 # Configure Gemini API
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'your-api-key-here')  # Replace with your actual API key
 genai.configure(api_key=GEMINI_API_KEY)
 
 # Configure upload settings
